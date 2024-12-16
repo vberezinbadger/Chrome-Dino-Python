@@ -14,7 +14,7 @@ This project is a reworking of another project where I was inspired to create my
 
 -	First of all, **clone the repository** using:
 ```
-https://github.com/vberezinbadger/Chrome-Dino-Python.git
+git clone https://github.com/vberezinbadger/Chrome-Dino-Python.git
 ```
 **OR**
 Download the Zip and extract it's contents.
