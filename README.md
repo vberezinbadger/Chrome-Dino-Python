@@ -2,4 +2,31 @@
 
 ![Project Splash](https://github.com/vberezinbadger/Chrome-Dino-Python/blob/main/assets/splash-dino.png?raw=true)
 
-This project is a rewritten Dino game from Chrome to Python. A rewritten version from the JavaScript implementation to Python.
+### A little bit about the project
+
+Hi! This project was created as one of the implementations of the Chrome Dino game (included in the delivery of Google's Chrome browser), and has several differences from other implementations and alterations in that it is closer to the original in terms of movement.
+
+This project is a reworking of another project where I was inspired to create my own implementation (![link to the project](https://github.com/WahidSaeed/Chrome-Dino-JS)), and it is a reworking of the project into another programming language (Python) instead of JavaScript. For the most part, only the database is implemented in the project, so you can make a fork and supplement it. For example, by adding something new, or by adding what is in the original game.
+
+> Don't swear too much: the project was made literally on the knee, and on interest, and in places it can be artefacted, frizzed and sprinkled with errors. You can always do better.
+
+### Preparation for use
+
+-	First of all, **clone the repository** using:
+```
+https://github.com/vberezinbadger/Chrome-Dino-Python.git
+```
+**OR**
+Download the Zip and extract it's contents.
+
+-	Then download the dependencies in your Command Prompt OR Terminal using:
+```
+pip install requirements.txt
+```
+
+### Usage
+
+-	After installation, just run the [`main.py`](https://github.com/vberezinbadger/Chrome-Dino-Python/blob/main/main.py) using
+```
+python main.py
+```
