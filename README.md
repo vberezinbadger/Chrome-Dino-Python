@@ -21,7 +21,7 @@ Download the Zip and extract it's contents.
 
 -	Then download the dependencies in your Command Prompt OR Terminal using:
 ```
-pip install requirements.txt
+pip install -r requirements.txt
 ```
 
 ### Usage
