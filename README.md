@@ -30,3 +30,10 @@ pip install -r requirements.txt
 ```
 python main.py
 ```
+
+### Notes
+
+> [!NOTE]
+> The project runs on all operating systems in graphical mode. Run it on Windows, macOS and Linux systems.
+
+This project works on all operating systems with `Python 3.12` and higher installed. I strongly recommend not using versions older than the recommended one: the project may not start or will start, but with errors.
