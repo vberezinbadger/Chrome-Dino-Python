@@ -8,6 +8,7 @@ import cairosvg
 # Инициализация pygame
 pygame.init()
 pygame.font.init()
+pygame.mixer.init()  # Инициализация звуковой подсистемы
 
 # Константы
 SCREEN_WIDTH = 700
@@ -27,11 +28,11 @@ def convert_svg_to_png(svg_path, png_path, width, height):
 def initialize_images():
     """Конвертирует все необходимые SVG в PNG с правильными размерами из main.js"""
     image_conversions = [
-        ("images/dino_walk_1.svg", "images/dino_walk_1.png", 40, 40),
-        ("images/dino_walk_2.svg", "images/dino_walk_2.png", 40, 40),
-        ("images/dino_crash.svg", "images/dino_crash.png", 40, 40),
+        ("images/dino_walk_1.svg", "images/dino_walk_1.png", 40, 43),  # Обновленная высота
+        ("images/dino_walk_2.svg", "images/dino_walk_2.png", 40, 43),  # Обновленная высота
+        ("images/dino_crash.svg", "images/dino_crash.png", 40, 43),    # Обновленная высота
         # Размеры кактуса теперь будут определяться динамически
-        ("images/obstical_cactus.svg", "images/obstical_cactus.png", 25, 55),
+        ("images/obstical_cactus.svg", "images/obstical_cactus.png", 20, 40),  # Обновленные размеры
         ("images/cloud.svg", "images/cloud.png", 60, 25),
         ("images/land_normal.svg", "images/land_normal.png", 100, 5),
         ("images/land_bump.svg", "images/land_bump.png", 60, 12),
@@ -84,13 +85,13 @@ class Dino(GameObject):
     def __init__(self):
         current_dir = os.path.dirname(os.path.abspath(__file__))
         image_path = os.path.join(current_dir, "images", "dino_walk_1.png")
-        super().__init__(10, SCREEN_HEIGHT - 40, 40, 40, image_path)
+        super().__init__(10, SCREEN_HEIGHT - 43, 40, 43, image_path)  # Обновили позицию Y и высоту
         
         self.walk_images = [
-            load_image(os.path.join(current_dir, "images", "dino_walk_1.png"), 40, 40),
-            load_image(os.path.join(current_dir, "images", "dino_walk_2.png"), 40, 40)
+            load_image(os.path.join(current_dir, "images", "dino_walk_1.png"), 40, 43),
+            load_image(os.path.join(current_dir, "images", "dino_walk_2.png"), 40, 43)
         ]
-        self.crash_image = load_image(os.path.join(current_dir, "images", "dino_crash.png"), 40, 40)
+        self.crash_image = load_image(os.path.join(current_dir, "images", "dino_crash.png"), 40, 43)
         
         self.gravity = 0.6
         self.velocity = 0
@@ -102,10 +103,12 @@ class Dino(GameObject):
         self.jump_time = 0
         self.max_jump_time = 150  # Уменьшили время удержания с 200 до 150
         self.is_jump_pressed = False
+        self.jump_sound = pygame.mixer.Sound(os.path.join(current_dir, "sounds", "jump.wav"))
 
     def start_jump(self):
         """Начало прыжка"""
         if not self.is_jumping and self.rect.bottom >= SCREEN_HEIGHT:
+            self.jump_sound.play()  # Воспроизводим звук прыжка
             self.is_jumping = True
             self.is_jump_pressed = True
             self.jump_time = 0
@@ -175,6 +178,14 @@ class Game:
     def __init__(self):
         self.screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
         pygame.display.set_caption("Chrome Dino Game")
+        
+        # Устанавливаем иконку игры
+        current_dir = os.path.dirname(os.path.abspath(__file__))
+        icon_path = os.path.join(current_dir, "images", "game-icon.png")
+        if os.path.exists(icon_path):
+            icon = pygame.image.load(icon_path)
+            pygame.display.set_icon(icon)
+        
         self.clock = pygame.time.Clock()
         
         # Загружаем пользовательский шрифт
@@ -221,9 +232,9 @@ class Game:
         self.game_over_sprite = pygame.transform.scale(self.game_over_sprite, (250, 15))  # Исправленные размеры
         
         self.reset_button = pygame.image.load(
-            os.path.join(current_dir, "images", "reset.png")
+            os.path.join(current_dir, "images", "replay_button.png")  # Изменен путь к файлу
         ).convert_alpha()
-        self.reset_button = pygame.transform.scale(self.reset_button, (40, 40))
+        self.reset_button = pygame.transform.scale(self.reset_button, (34, 30))  # Новые размеры 34x30
         
         # Создаем прямоугольники для позиционирования
         self.game_over_rect = self.game_over_sprite.get_rect()
@@ -231,6 +242,22 @@ class Game:
         
         self.reset_game_state()
         self.show_debug = True  # Флаг для отображения debug информации
+
+        # Загружаем звуки
+        self.jump_sound = pygame.mixer.Sound(os.path.join(current_dir, "sounds", "jump.wav"))
+        self.point_sound = pygame.mixer.Sound(os.path.join(current_dir, "sounds", "point.wav"))
+        self.die_sound = pygame.mixer.Sound(os.path.join(current_dir, "sounds", "die.wav"))
+        
+        # Добавляем переменную для отслеживания последней тысячи очков
+        self.last_point_score = 0  # Для отслеживания последней тысячи очков
+
+        # Добавляем параметры для подмигивания счета
+        self.score_blinking = False  # Флаг активного подмигивания
+        self.blink_count = 0        # Счетчик подмигиваний
+        self.blink_timer = 0        # Таймер для контроля времени
+        self.blink_visible = True   # Текущее состояние видимости
+        self.max_blinks = 4         # Количество подмигиваний
+        self.blink_interval = 100   # Интервал между сменой состояния (в мс)
 
     def reset_game_state(self):
         """Сбрасывает состояние игры"""
@@ -295,9 +322,8 @@ class Game:
 
     def spawn_obstacle(self):
         if len(self.obstacles) == 0 or self.obstacles[-1].rect.right < SCREEN_WIDTH - 300:
-            # Используем оригинальные размеры из main.js
-            height = random.randint(40, 55)  # Оригинальная высота
-            width = random.randint(20, 25)   # Оригинальная ширина
+            height = 40  # Фиксированная высота
+            width = 20   # Фиксированная ширина
             current_dir = os.path.dirname(os.path.abspath(__file__))
             image_path = os.path.join(current_dir, "images", "obstical_cactus.png")
             obstacle = GameObject(
@@ -331,8 +357,9 @@ class Game:
             rightmost = new_land
 
     def update(self):
-        if self.dino.is_crashed and not self.is_game_over:  # Заменил 'и' на 'and'
+        if self.dino.is_crashed and not self.is_game_over:
             self.is_game_over = True
+            self.die_sound.play()  # Воспроизводим звук при проигрыше
             # Центрируем спрайты Game Over экрана
             self.game_over_rect.centerx = SCREEN_WIDTH // 2
             self.game_over_rect.centery = SCREEN_HEIGHT // 2 - 32
@@ -381,6 +408,29 @@ class Game:
                     self.max_game_speed,
                     self.initial_game_speed + (self.score * self.speed_increment)
                 )
+
+            # Проверяем достижение тысячи очков (более точная проверка)
+            current_thousand = self.score // 1000
+            last_thousand = self.last_point_score // 1000
+            if current_thousand > last_thousand:
+                self.point_sound.play()
+                self.last_point_score = current_thousand * 1000
+                # Запускаем подмигивание
+                self.score_blinking = True
+                self.blink_count = 0
+                self.blink_timer = current_time
+                self.blink_visible = True
+
+            # Обновление подмигивания
+            if self.score_blinking:
+                if current_time - self.blink_timer >= self.blink_interval:
+                    self.blink_visible = not self.blink_visible
+                    self.blink_timer = current_time
+                    if not self.blink_visible:  # Считаем только полные циклы
+                        self.blink_count += 1
+                    if self.blink_count >= self.max_blinks:
+                        self.score_blinking = False
+                        self.blink_visible = True
 
             # Обновление цикла дня и ночи
             self.current_cycle = (self.current_cycle + 1) % self.day_night_cycle
@@ -471,10 +521,11 @@ class Game:
                 obstacle_surface = self.apply_night_effect(obstacle_surface)
             self.screen.blit(obstacle_surface, obstacle.rect)
 
-        # Отображение счета
+        # Отображение счета с учетом подмигивания
         score_color = self.sprite_day_color if self.transition_progress < 0.5 else self.sprite_night_color
-        score_text = self.font.render(f'Score: {self.score}', True, score_color)
-        self.screen.blit(score_text, (10, 10))
+        if not self.score_blinking or self.blink_visible:
+            score_text = self.font.render(f'Score: {self.score}', True, score_color)
+            self.screen.blit(score_text, (10, 10))
 
         # Добавляем отрисовку debug информации
         self.draw_debug_info()
