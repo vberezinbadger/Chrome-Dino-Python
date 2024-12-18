@@ -33,6 +33,24 @@ pip install -r requirements.txt
 python main.py
 ```
 
+### Project plan
+
+Here I'll just leave the project plan: the implemented functionality, and what I'm already doing. You can consider these spoilers for the project.
+
+**The main base of the project**
+- [x] The project engine
+- [x] Basic logic
+- [x] Control of the game
+
+**Effects, sounds and animations**
+- [x] Implementation of animations
+- [x] Sounds in the game (points, jump, loss)
+- [x] Smooth transitions of the time cycle in the game
+
+**What I want to implement**
+- [ ] Dinosaur's Computer Vision
+- [ ] A more competent implementation of obstacle generation
+
 ### Notes
 
 > [!NOTE]
