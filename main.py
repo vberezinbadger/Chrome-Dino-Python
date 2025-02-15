@@ -38,6 +38,8 @@ def initialize_images():
         ("images/land_bump.svg", "images/land_bump.png", 60, 12),
         ("images/game_over.svg", "images/game_over.png", 250, 15),  # Исправленные размеры
         ("images/reset.svg", "images/reset.png", 40, 40),
+        ("images/ptero_fly1.svg", "images/ptero_fly1.png", 40, 35),  # Обновленные размеры
+        ("images/ptero_fly2.svg", "images/ptero_fly2.png", 40, 35),  # Обновленные размеры
     ]
     
     # Создаем папку images если её нет
@@ -104,6 +106,18 @@ class Dino(GameObject):
         self.max_jump_time = 150  # Уменьшили время удержания с 200 до 150
         self.is_jump_pressed = False
         self.jump_sound = pygame.mixer.Sound(os.path.join(current_dir, "sounds", "jump.wav"))
+        self.auto_mode = False  # Добавляем флаг автоматического режима
+        self.vision_distance = 250  # Увеличиваем дистанцию видимости
+        self.next_obstacle = None  # Ближайшее препятствие
+        self.auto_jump_power = -6  # Базовая сила прыжка для авто-режима
+        self.auto_jump_duration = 0  # Длительность удержания прыжка
+        self.current_game_speed = 4  # Текущая скорость игры
+        self.jump_adjustment = 1.0  # Коэффициент корректировки прыжка
+        self.jump_distances = {
+            'near': 60,    # Близкое расстояние
+            'medium': 120,  # Среднее расстояние
+            'far': 180     # Дальнее расстояние
+        }
 
     def start_jump(self):
         """Начало прыжка"""
@@ -112,7 +126,7 @@ class Dino(GameObject):
             self.is_jumping = True
             self.is_jump_pressed = True
             self.jump_time = 0
-            self.velocity = self.min_jump_velocity  # Начальная скорость прыжка
+            self.velocity = self.auto_jump_power if self.auto_mode else self.min_jump_velocity  # Используем рассчитанную силу прыжка в авто-режиме
 
     def update(self, dt):
         if not self.is_crashed:
@@ -152,6 +166,102 @@ class Dino(GameObject):
         self.is_crashed = True
         self.image = self.crash_image
 
+    def should_jump(self, obstacles, pterodactyls):
+        """Определяет, нужно ли прыгать"""
+        if not obstacles and not pterodactyls:
+            return False
+
+        # Объединяем все препятствия
+        all_obstacles = []
+        all_obstacles.extend(obstacles)
+        all_obstacles.extend(pterodactyls)
+
+        # Ищем ближайшее препятствие впереди динозавра
+        nearest = None
+        min_distance = float('inf')
+        
+        for obstacle in all_obstacles:
+            if obstacle.rect.left > self.rect.right:  # Только препятствия впереди
+                distance = obstacle.rect.left - self.rect.right
+                if distance < min_distance:
+                    min_distance = distance
+                    nearest = obstacle
+        
+        self.next_obstacle = nearest
+
+        # Определяем оптимальную дистанцию для начала прыжка
+        if nearest:
+            jump_distance = self.vision_distance * 0.4  # 40% от дистанции видимости
+
+            # Корректируем расстояние в зависимости от типа и высоты препятствия
+            if isinstance(nearest, Pterodactyl):
+                if nearest.rect.bottom < SCREEN_HEIGHT - 60:
+                    jump_distance *= 1.4  # Увеличиваем дистанцию для высоких птеродактилей
+                else:
+                    jump_distance *= 1.2  # Для низких птеродактилей
+            else:
+                # Для кактусов учитываем их высоту
+                height_factor = nearest.rect.height / 40.0  # Нормализуем относительно стандартной высоты
+                jump_distance *= (1 + height_factor * 0.2)  # Увеличиваем дистанцию для высоких кактусов
+
+            # Корректируем расстояние с учетом текущей скорости
+            jump_distance *= (self.current_game_speed / 4.0)
+
+            # Проверяем, нужно ли прыгать
+            if min_distance <= jump_distance:
+                self.auto_jump_power, self.auto_jump_duration = self.calculate_jump_power(nearest)
+                return self.rect.bottom >= SCREEN_HEIGHT - 1
+
+        return False
+
+    def calculate_jump_power(self, obstacle):
+        """Рассчитывает необходимую силу прыжка для преодоления препятствия"""
+        if not obstacle:
+            return self.min_jump_velocity, 0
+        
+        distance = obstacle.rect.left - self.rect.right
+        height_diff = self.rect.bottom - obstacle.rect.top
+        
+        # Базовая сила прыжка зависит от расстояния до препятствия
+        if distance < self.jump_distances['near']:
+            base_power = self.max_jump_velocity * 1.2  # Сильный прыжок для близких препятствий
+            duration = self.max_jump_time * 0.9
+        elif distance < self.jump_distances['medium']:
+            base_power = self.max_jump_velocity * 1.1
+            duration = self.max_jump_time * 0.8
+        else:
+            base_power = self.max_jump_velocity
+            duration = self.max_jump_time * 0.7
+
+        # Дополнительная корректировка для птеродактилей
+        if isinstance(obstacle, Pterodactyl):
+            if obstacle.rect.bottom < SCREEN_HEIGHT - 60:
+                base_power *= 1.2  # Усиливаем прыжок для высоко летящих птеродактилей
+                duration *= 0.9
+            else:
+                base_power *= 0.9  # Ослабляем для низко летящих
+                duration *= 0.7
+        else:
+            # Корректировка для кактусов разной высоты
+            if height_diff > 35:
+                base_power *= 1.15
+                duration *= 0.95
+            elif height_diff > 25:
+                base_power *= 1.1
+                duration *= 0.85
+
+        # Корректировка с учетом скорости игры
+        speed_factor = 1 + (self.current_game_speed - 4) * 0.15
+        
+        # Применяем корректировки
+        power = base_power * speed_factor * self.jump_adjustment
+        
+        # Ограничиваем значения
+        power = max(min(power, -5), -10)
+        duration = max(min(duration, self.max_jump_time), self.max_jump_time * 0.4)
+        
+        return power, duration
+
 class Cloud(GameObject):
     def __init__(self, x, y):
         current_dir = os.path.dirname(os.path.abspath(__file__))
@@ -173,6 +283,35 @@ class Land(GameObject):
             # Используем оригинальные размеры из main.js
             super().__init__(x, SCREEN_HEIGHT - 10, 100, 5, 
                            os.path.join(current_dir, "images", "land_normal.png"))
+
+class Pterodactyl(GameObject):
+    def __init__(self):
+        current_dir = os.path.dirname(os.path.abspath(__file__))
+        super().__init__(SCREEN_WIDTH, 0, 40, 35,  # Обновленные размеры
+                        os.path.join(current_dir, "images", "ptero_fly1.png"))
+        
+        # Загружаем кадры анимации с новыми размерами
+        self.fly_images = [
+            load_image(os.path.join(current_dir, "images", "ptero_fly1.png"), 40, 35),
+            load_image(os.path.join(current_dir, "images", "ptero_fly2.png"), 40, 35)
+        ]
+        
+        # Устанавливаем случайную высоту полета
+        self.heights = [SCREEN_HEIGHT - 40 - 40, SCREEN_HEIGHT - 80 - 40]  # Две возможные высоты
+        self.rect.y = random.choice(self.heights)
+        
+        self.animation_count = 0
+        self.speed = 4  # Уменьшаем скорость с 6 до 4
+
+    def update(self, game_speed):
+        # Движение влево
+        self.rect.x -= game_speed + self.speed
+        
+        # Анимация
+        self.animation_count += 1
+        if self.animation_count >= len(self.fly_images) * 10:
+            self.animation_count = 0
+        self.image = self.fly_images[self.animation_count // 10]
 
 class Game:
     def __init__(self):
@@ -203,6 +342,7 @@ class Game:
         self.obstacles = []
         self.clouds = []
         self.lands = []
+        self.pterodactyls = []  # Добавляем список для птеродактилей
         self.score = 0
         self.running = True
         self.initial_game_speed = 4  # Начальная скорость
@@ -242,6 +382,8 @@ class Game:
         
         self.reset_game_state()
         self.show_debug = True  # Флаг для отображения debug информации
+        self.show_advanced_debug = False  # Расширенный debug (M)
+        self.show_vision = False  # Флаг для отображения линии зрения
 
         # Загружаем звуки
         self.jump_sound = pygame.mixer.Sound(os.path.join(current_dir, "sounds", "jump.wav"))
@@ -265,6 +407,7 @@ class Game:
         self.obstacles = []
         self.clouds = []
         self.lands = []
+        self.pterodactyls = []
         self.score = 0
         self.initialize_land()
         self.is_game_over = False
@@ -356,6 +499,14 @@ class Game:
             self.lands.append(new_land)
             rightmost = new_land
 
+    def spawn_pterodactyl(self):
+        """Создает нового птеродактиля"""
+        # Создаем птеродактиля только если прошли 500 очков и с вероятностью 1%
+        if (self.score > 500 and 
+            (len(self.pterodactyls) == 0 or self.pterodactyls[-1].rect.right < SCREEN_WIDTH - 400) and
+            random.random() < 0.01):
+            self.pterodactyls.append(Pterodactyl())
+
     def update(self):
         if self.dino.is_crashed and not self.is_game_over:
             self.is_game_over = True
@@ -400,6 +551,7 @@ class Game:
 
             self.spawn_obstacle()
             self.spawn_cloud()
+            self.spawn_pterodactyl()
             self.score += 1
 
             # Увеличиваем скорость игры
@@ -444,24 +596,68 @@ class Game:
             elif self.transition_progress > target:
                 self.transition_progress = max(0.0, self.transition_progress - self.transition_speed)
 
+            # Обновление птеродактилей
+            for ptero in self.pterodactyls[:]:
+                ptero.update(self.game_speed)
+                if ptero.rect.right < 0:
+                    self.pterodactyls.remove(ptero)
+                if self.dino.rect.colliderect(ptero.rect):
+                    self.dino.crash()
+
+            # Обновляем текущую скорость игры для динозавра
+            self.dino.current_game_speed = self.game_speed
+
+            # Автоматическое управление
+            if self.dino.auto_mode and not self.dino.is_crashed:
+                if self.dino.should_jump(self.obstacles, self.pterodactyls):
+                    self.dino.start_jump()
+                elif (self.dino.is_jumping and
+                      self.dino.jump_time >= self.dino.auto_jump_duration):
+                    self.dino.stop_jump()
+
     def handle_events(self):
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 self.running = False
             elif event.type == pygame.KEYDOWN:
-                if event.key in [pygame.K_SPACE, pygame.K_UP] and not self.is_game_over:
+                if self.is_game_over:
+                    # Перезапускаем игру при нажатии любой клавиши в состоянии Game Over
+                    self.reset_game_state()
+                elif event.key in [pygame.K_SPACE, pygame.K_UP]:
                     self.dino.start_jump()
                 elif event.key == pygame.K_t:
                     self.is_night = not self.is_night
-                elif event.key == pygame.K_F3:  # Добавляем клавишу для переключения debug информации
+                elif event.key == pygame.K_F3:
                     self.show_debug = not self.show_debug
+                elif event.key == pygame.K_m:
+                    self.show_advanced_debug = not self.show_advanced_debug
+                elif event.key == pygame.K_n:
+                    self.dino.auto_mode = not self.dino.auto_mode
+                    self.show_vision = self.dino.auto_mode
             elif event.type == pygame.KEYUP:
                 if event.key in [pygame.K_SPACE, pygame.K_UP]:
                     self.dino.stop_jump()
             elif event.type == pygame.MOUSEBUTTONDOWN and self.is_game_over:
-                # Проверяем клик по кнопке перезапуска
+                # Оставляем возможность перезапуска по клику на кнопку
                 if self.reset_button_rect.collidepoint(event.pos):
                     self.reset_game_state()
+
+    def draw_hitbox(self, surface, rect, color=(255, 0, 0)):
+        """Отрисовка хитбокса объекта"""
+        pygame.draw.rect(surface, color, rect, 1)
+
+    def draw_object_info(self, obj, info_list):
+        """Отрисовка информации об объекте"""
+        if not self.show_advanced_debug:
+            return
+
+        text_color = self.sprite_night_color if self.transition_progress > 0.5 else self.sprite_day_color
+        y_offset = 0
+        
+        for info in info_list:
+            text_surface = self.debug_font.render(info, True, text_color)
+            self.screen.blit(text_surface, (obj.rect.right + 5, obj.rect.top + y_offset))
+            y_offset += 10
 
     def draw_debug_info(self):
         """Отрисовка debug информации"""
@@ -472,8 +668,20 @@ class Game:
             f"FPS: {int(self.clock.get_fps())}",
             f"Jump Velocity: {self.dino.velocity:.2f}",
             f"Is Night: {self.is_night}",
-            f"Game Speed: {self.game_speed:.2f}"
+            f"Game Speed: {self.game_speed:.2f}",
+            f"Score: {self.score}",
+            f"Objects: {len(self.obstacles) + len(self.pterodactyls)}",
         ]
+        
+        if self.show_advanced_debug:
+            debug_info.extend([
+                "Advanced Debug: ON",
+                f"Pterodactyls: {len(self.pterodactyls)}",
+                f"Obstacles: {len(self.obstacles)}",
+                f"Clouds: {len(self.clouds)}",
+                f"Auto Jump Power: {self.dino.auto_jump_power:.1f}",
+                f"Auto Jump Duration: {self.dino.auto_jump_duration}"
+            ])
         
         # Объединяем все строки в одну с переносами
         debug_text = "\n".join(debug_info)
@@ -489,6 +697,13 @@ class Game:
             x = SCREEN_WIDTH - debug_surface.get_width() - 10
             self.screen.blit(debug_surface, (x, y))
             y += debug_surface.get_height()
+
+    def draw_vision_line(self):
+        """Отрисовка линии зрения"""
+        if self.show_vision and self.dino.next_obstacle:
+            start_pos = (self.dino.rect.right, self.dino.rect.centery)
+            end_pos = (self.dino.next_obstacle.rect.left, self.dino.next_obstacle.rect.centery)
+            pygame.draw.line(self.screen, (0, 255, 0), start_pos, end_pos, 2)
 
     def draw(self):
         # Заливаем фон текущим цветом
@@ -521,6 +736,13 @@ class Game:
                 obstacle_surface = self.apply_night_effect(obstacle_surface)
             self.screen.blit(obstacle_surface, obstacle.rect)
 
+        # Рисуем птеродактилей
+        for ptero in self.pterodactyls:
+            ptero_surface = ptero.image.copy()
+            if self.transition_progress > 0:
+                ptero_surface = self.apply_night_effect(ptero_surface)
+            self.screen.blit(ptero_surface, ptero.rect)
+
         # Отображение счета с учетом подмигивания
         score_color = self.sprite_day_color if self.transition_progress < 0.5 else self.sprite_night_color
         if not self.score_blinking or self.blink_visible:
@@ -529,6 +751,40 @@ class Game:
 
         # Добавляем отрисовку debug информации
         self.draw_debug_info()
+
+        # Отрисовка расширенного debug
+        if self.show_advanced_debug:
+            # Хитбокс и информация о динозавре
+            self.draw_hitbox(self.screen, self.dino.rect, (0, 255, 0))
+            self.draw_object_info(self.dino, [
+                f"pos: ({self.dino.rect.x}, {self.dino.rect.y})",
+                f"vel: {self.dino.velocity:.1f}",
+                f"jump: {self.dino.is_jumping}"
+            ])
+
+            # Хитбоксы и информация о птеродактилях
+            for ptero in self.pterodactyls:  # Исправлена опечатка
+                self.draw_hitbox(self.screen, ptero.rect, (255, 0, 0))
+                self.draw_object_info(ptero, [
+                    f"pos: ({ptero.rect.x}, {ptero.rect.y})",
+                    f"speed: {ptero.speed + self.game_speed:.1f}"
+                ])
+
+            # Хитбоксы и информация о препятствиях
+            for obstacle in self.obstacles:
+                self.draw_hitbox(self.screen, obstacle.rect, (255, 165, 0))
+                self.draw_object_info(obstacle, [
+                    f"pos: ({obstacle.rect.x}, {obstacle.rect.y})",
+                    f"size: {obstacle.rect.width}x{obstacle.rect.height}"
+                ])
+
+            # Хитбоксы облаков (необязательно)
+            for cloud in self.clouds:
+                self.draw_hitbox(self.screen, cloud.rect, (0, 191, 255))
+
+        # Отрисовка линии зрения перед отрисовкой debug информации
+        if self.show_vision:
+            self.draw_vision_line()
 
         # Отрисовка Game Over экрана поверх всего остального
         if self.is_game_over:
