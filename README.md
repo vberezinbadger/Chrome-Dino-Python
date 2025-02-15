@@ -49,6 +49,7 @@ Here I'll just leave the project plan: the implemented functionality, and what I
 
 **What I want to implement**
 - [x] Dinosaur's Computer Vision
+- [x] Pterodactyls in the game as one of the obstacles
 - [ ] A more competent implementation of obstacle generation
 - [ ] Reorganize the project: make a modular system to simplify the code by dividing it into modules
 - [x] Organize the work of sprites and assets for the game
