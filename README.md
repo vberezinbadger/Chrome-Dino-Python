@@ -48,7 +48,7 @@ Here I'll just leave the project plan: the implemented functionality, and what I
 - [x] Smooth transitions of the time cycle in the game
 
 **What I want to implement**
-- [ ] Dinosaur's Computer Vision
+- [x] Dinosaur's Computer Vision
 - [ ] A more competent implementation of obstacle generation
 - [ ] Reorganize the project: make a modular system to simplify the code by dividing it into modules
 - [x] Organize the work of sprites and assets for the game
