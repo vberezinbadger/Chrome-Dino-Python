@@ -8,6 +8,8 @@ Hi! This project was created as one of the implementations of the Chrome Dino ga
 
 This project is a reworking of another project where I was inspired to create my own implementation ([link to the project](https://github.com/WahidSaeed/Chrome-Dino-JS)), and it is a reworking of the project into another programming language (Python) instead of JavaScript. For the most part, only the database is implemented in the project, so you can make a fork and supplement it. For example, by adding something new, or by adding what is in the original game.
 
+**[WahidSaeed](https://github.com/WahidSaeed/Chrome-Dino-JS)** Thank you for creating the database and the exciting experience of rewriting one project into another programming language!
+
 > Don't swear too much: the project was made literally on the knee, and on interest, and in places it can be artefacted, frizzed and sprinkled with errors. You can always do better.
 
 ### Preparation for use
@@ -30,3 +32,30 @@ pip install -r requirements.txt
 ```
 python main.py
 ```
+
+### Project plan
+
+Here I'll just leave the project plan: the implemented functionality, and what I'm already doing. You can consider these spoilers for the project.
+
+**The main base of the project**
+- [x] The project engine
+- [x] Basic logic
+- [x] Control of the game
+
+**Effects, sounds and animations**
+- [x] Implementation of animations
+- [x] Sounds in the game (points, jump, loss)
+- [x] Smooth transitions of the time cycle in the game
+
+**What I want to implement**
+- [ ] Dinosaur's Computer Vision
+- [ ] A more competent implementation of obstacle generation
+- [ ] Reorganize the project: make a modular system to simplify the code by dividing it into modules
+- [x] Organize the work of sprites and assets for the game
+
+### Notes
+
+> [!NOTE]
+> The project runs on all operating systems in graphical mode. Run it on Windows, macOS and Linux systems.
+
+This project works on all operating systems with `Python 3.12` and higher installed. I strongly recommend not using versions older than the recommended one: the project may not start or will start, but with errors.
